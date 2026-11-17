@@ -42,8 +42,16 @@ const postSchema = new mongoose.Schema(
       type: [String],
       default: [],
       // Normalize tags to lowercase so "React" and "react" are treated as
-      // the same tag for filtering purposes.
-      set: (tags) => tags.map((t) => t.trim().toLowerCase()).filter(Boolean),
+      // the same tag for filtering purposes. A single string is treated as
+      // a one-tag list and null as no tags; non-string entries are left for
+      // the String cast to reject as a validation error.
+      set: (tags) => {
+        if (tags == null) return [];
+        const list = Array.isArray(tags) ? tags : [tags];
+        return list
+          .map((t) => (typeof t === 'string' ? t.trim().toLowerCase() : t))
+          .filter((t) => t !== '');
+      },
     },
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     authorUsername: { type: String, required: true },
