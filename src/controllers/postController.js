@@ -1,17 +1,35 @@
 const Post = require('../models/Post');
-const { NotFoundError, ForbiddenError } = require('../utils/errors');
+const { NotFoundError, ForbiddenError, ValidationError } = require('../utils/errors');
+
+/**
+ * Express's query parser turns ?tag=a&tag=b into an array and ?tag[$ne]=x
+ * into an object. Only a plain string is a meaningful filter, so anything
+ * else is a 400 rather than a TypeError (500) or an operator object passed
+ * straight into the Mongo query.
+ */
+function optionalStringParam(query, name) {
+  const value = query[name];
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') {
+    throw new ValidationError(`${name} must be a single string value`);
+  }
+  return value;
+}
 
 async function listPosts(req, res, next) {
   try {
     const page = Math.max(parseInt(req.query.page, 10) || 0, 0);
     const size = Math.min(Math.max(parseInt(req.query.size, 10) || 10, 1), 50);
 
+    const tag = optionalStringParam(req.query, 'tag');
+    const search = optionalStringParam(req.query, 'search');
+
     const filter = {};
-    if (req.query.tag) {
-      filter.tags = req.query.tag.toLowerCase();
+    if (tag) {
+      filter.tags = tag.toLowerCase();
     }
-    if (req.query.search) {
-      filter.$text = { $search: req.query.search };
+    if (search) {
+      filter.$text = { $search: search };
     }
 
     const [posts, totalElements] = await Promise.all([
