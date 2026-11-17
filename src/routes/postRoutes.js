@@ -35,6 +35,7 @@ const router = express.Router();
  *         schema: { type: string }
  *     responses:
  *       200: { description: A page of posts }
+ *       400: { description: tag or search is not a single string }
  *   post:
  *     summary: Create a post
  *     tags: [Posts]

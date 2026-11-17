@@ -69,6 +69,12 @@ npm test
 
 Tests use `mongodb-memory-server` (a real, ephemeral MongoDB instance that runs in-process) rather than mocking the database, so the actual queries -- including the aggregation pipeline behind `/trending` -- are exercised for real, not simulated.
 
+On the first run `mongodb-memory-server` downloads a MongoDB binary (cached under `node_modules/.cache/mongodb-memory-server`), so that first run needs internet access. `tests/postModel.test.js` and `tests/listPostsQuery.test.js` never touch the database and run without it:
+
+```bash
+npx jest tests/postModel.test.js tests/listPostsQuery.test.js
+```
+
 ## CI/CD
 
 `.github/workflows/ci.yml` runs `npm test` on every push and pull request to `main`. No database service container is needed in CI since `mongodb-memory-server` is self-contained.
@@ -88,6 +94,25 @@ Tests use `mongodb-memory-server` (a real, ephemeral MongoDB instance that runs 
 | POST | /api/posts/:id/comments | Add a comment | Yes |
 | DELETE | /api/posts/:id/comments/:commentId | Delete a comment (comment author only) | Yes |
 | POST | /api/posts/:id/comments/:commentId/replies | Reply to a comment | Yes |
+
+### Listing and filtering posts
+
+`GET /api/posts` returns newest posts first, without their comment threads:
+
+```json
+{ "content": [...], "currentPage": 0, "pageSize": 10, "totalElements": 42, "totalPages": 5 }
+```
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `page` | `0` | Zero-based page index |
+| `size` | `10` | Clamped to 1-50 |
+| `tag` | -- | Exact tag match, case-insensitive (`React` matches `react`) |
+| `search` | -- | Full-text search over title and body (MongoDB text index) |
+
+`tag` and `search` must each be a single string: a repeated parameter (`?tag=a&tag=b`) or a bracketed object (`?tag[$ne]=x`) is rejected with `400`. `GET /api/posts/trending` takes `limit` (default 5, clamped to 1-20).
+
+When creating or updating a post, `tags` may be an array or a single string. Tags are trimmed and lowercased, and empty ones are dropped.
 
 ## Ideas for further work
 
